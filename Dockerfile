@@ -1,6 +1,22 @@
 FROM openjdk:8-jdk
 
-RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git curl 
+RUN apt-get -y install \
+     apt-transport-https \
+     ca-certificates \
+     curl \
+     gnupg2 \
+     software-properties-common
+
+RUN curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg | apt-key add -
+RUN add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") \
+   $(lsb_release -cs) \
+   stable"
+
+RUN apt-get update && apt-get install -y docker-ce
+
+RUN rm -rf /var/lib/apt/lists/* && rm -rf /var/lib/apt/lists/*
 
 ARG user=jenkins
 ARG group=jenkins
@@ -38,10 +54,10 @@ COPY init.groovy /usr/share/jenkins/ref/init.groovy.d/tcp-slave-agent-port.groov
 
 # jenkins version being bundled in this docker image
 ARG JENKINS_VERSION
-ENV JENKINS_VERSION ${JENKINS_VERSION:-2.60.3}
+ENV JENKINS_VERSION ${JENKINS_VERSION:-2.73.2}
 
 # jenkins.war checksum, download will be validated using it
-ARG JENKINS_SHA=2d71b8f87c8417f9303a73d52901a59678ee6c0eefcf7325efed6035ff39372a
+ARG JENKINS_SHA=f6d1351beef34d980b32f8c463be505445f637e2fc62156fecd42891c53c97d3
 
 # Can be used to customize where jenkins.war get downloaded from
 ARG JENKINS_URL=https://repo.jenkins-ci.org/public/org/jenkins-ci/main/jenkins-war/${JENKINS_VERSION}/jenkins-war-${JENKINS_VERSION}.war
@@ -72,3 +88,6 @@ ENTRYPOINT ["/bin/tini", "--", "/usr/local/bin/jenkins.sh"]
 # from a derived Dockerfile, can use `RUN plugins.sh active.txt` to setup /usr/share/jenkins/ref/plugins from a support bundle
 COPY plugins.sh /usr/local/bin/plugins.sh
 COPY install-plugins.sh /usr/local/bin/install-plugins.sh
+
+RUN /usr/local/bin/install-plugins.sh hashicorp-vault-plugin
+
